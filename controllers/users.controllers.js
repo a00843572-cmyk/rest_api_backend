@@ -1,4 +1,5 @@
 import { getConnection, sql } from "../utils/db.js";
+import { hashPassword } from "../utils/crypto.js";
 
 
 // OBTENER TODOS LOS USUARIOS
@@ -10,7 +11,15 @@ export const getUsers = async (req, res) => {
 
         const result = await pool
             .request()
-            .query("SELECT * FROM Users");
+            .query(`
+                SELECT
+                    id,
+                    name,
+                    age,
+                    points,
+                    username
+                FROM Users
+            `);
 
         res.json(result.recordset);
 
@@ -21,7 +30,6 @@ export const getUsers = async (req, res) => {
         res.status(500).json({
             message: "Error al obtener los usuarios"
         });
-
     }
 };
 
@@ -35,15 +43,27 @@ export const getUserById = async (req, res) => {
 
         const result = await pool
             .request()
-            .input("id", sql.Int, req.params.id)
-            .query("SELECT * FROM Users WHERE id = @id");
+            .input(
+                "id",
+                sql.Int,
+                req.params.id
+            )
+            .query(`
+                SELECT
+                    id,
+                    name,
+                    age,
+                    points,
+                    username
+                FROM Users
+                WHERE id = @id
+            `);
 
         if (result.recordset.length === 0) {
 
             return res.status(404).json({
                 message: "Usuario no encontrado"
             });
-
         }
 
         res.json(result.recordset[0]);
@@ -55,7 +75,6 @@ export const getUserById = async (req, res) => {
         res.status(500).json({
             message: "Error al obtener el usuario"
         });
-
     }
 };
 
@@ -73,21 +92,73 @@ export const createUser = async (req, res) => {
             password
         } = req.body;
 
-        const pool = await getConnection();
+
+        if (
+            !name ||
+            !username ||
+            !password
+        ) {
+
+            return res.status(400).json({
+                message: "Faltan datos obligatorios"
+            });
+        }
+
+
+        const passwordHash =
+            hashPassword(password);
+
+
+        const pool =
+            await getConnection();
+
 
         await pool
             .request()
-            .input("name", sql.VarChar, name)
-            .input("age", sql.Int, age)
-            .input("points", sql.Int, points)
-            .input("username", sql.VarChar, username)
-            .input("password", sql.VarChar, password)
+            .input(
+                "name",
+                sql.VarChar,
+                name
+            )
+            .input(
+                "age",
+                sql.Int,
+                age
+            )
+            .input(
+                "points",
+                sql.Int,
+                points
+            )
+            .input(
+                "username",
+                sql.VarChar,
+                username
+            )
+            .input(
+                "password",
+                sql.VarChar,
+                passwordHash
+            )
             .query(`
                 INSERT INTO Users
-                (name, age, points, username, password)
+                (
+                    name,
+                    age,
+                    points,
+                    username,
+                    password
+                )
                 VALUES
-                (@name, @age, @points, @username, @password)
+                (
+                    @name,
+                    @age,
+                    @points,
+                    @username,
+                    @password
+                )
             `);
+
 
         res.status(201).json({
             message: "Usuario creado correctamente"
@@ -100,7 +171,6 @@ export const createUser = async (req, res) => {
         res.status(500).json({
             message: "Error al crear usuario"
         });
-
     }
 };
 
@@ -118,37 +188,74 @@ export const updateUser = async (req, res) => {
             password
         } = req.body;
 
-        const pool = await getConnection();
+
+        const passwordHash =
+            hashPassword(password);
+
+
+        const pool =
+            await getConnection();
+
 
         const result = await pool
             .request()
-            .input("id", sql.Int, req.params.id)
-            .input("name", sql.VarChar, name)
-            .input("age", sql.Int, age)
-            .input("points", sql.Int, points)
-            .input("username", sql.VarChar, username)
-            .input("password", sql.VarChar, password)
+            .input(
+                "id",
+                sql.Int,
+                req.params.id
+            )
+            .input(
+                "name",
+                sql.VarChar,
+                name
+            )
+            .input(
+                "age",
+                sql.Int,
+                age
+            )
+            .input(
+                "points",
+                sql.Int,
+                points
+            )
+            .input(
+                "username",
+                sql.VarChar,
+                username
+            )
+            .input(
+                "password",
+                sql.VarChar,
+                passwordHash
+            )
             .query(`
                 UPDATE Users
+
                 SET
                     name = @name,
                     age = @age,
                     points = @points,
                     username = @username,
                     password = @password
+
                 WHERE id = @id
             `);
 
-        if (result.rowsAffected[0] === 0) {
+
+        if (
+            result.rowsAffected[0] === 0
+        ) {
 
             return res.status(404).json({
                 message: "Usuario no encontrado"
             });
-
         }
 
+
         res.json({
-            message: "Usuario actualizado correctamente"
+            message:
+                "Usuario actualizado correctamente"
         });
 
     } catch (error) {
@@ -156,9 +263,9 @@ export const updateUser = async (req, res) => {
         console.log(error);
 
         res.status(500).json({
-            message: "Error al actualizar usuario"
+            message:
+                "Error al actualizar usuario"
         });
-
     }
 };
 
@@ -168,23 +275,36 @@ export const deleteUser = async (req, res) => {
 
     try {
 
-        const pool = await getConnection();
+        const pool =
+            await getConnection();
+
 
         const result = await pool
             .request()
-            .input("id", sql.Int, req.params.id)
-            .query("DELETE FROM Users WHERE id = @id");
+            .input(
+                "id",
+                sql.Int,
+                req.params.id
+            )
+            .query(`
+                DELETE FROM Users
+                WHERE id = @id
+            `);
 
-        if (result.rowsAffected[0] === 0) {
+
+        if (
+            result.rowsAffected[0] === 0
+        ) {
 
             return res.status(404).json({
                 message: "Usuario no encontrado"
             });
-
         }
 
+
         res.json({
-            message: "Usuario eliminado correctamente"
+            message:
+                "Usuario eliminado correctamente"
         });
 
     } catch (error) {
@@ -192,8 +312,8 @@ export const deleteUser = async (req, res) => {
         console.log(error);
 
         res.status(500).json({
-            message: "Error al eliminar usuario"
+            message:
+                "Error al eliminar usuario"
         });
-
     }
 };
